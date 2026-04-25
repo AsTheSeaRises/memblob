@@ -140,6 +140,10 @@ Facts are persisted in `./memory_db/` (a ChromaDB SQLite store) relative to the 
 | Entity graph | no | yes |
 | Setup | ~5 min | more |
 
+## Roadmap
+
+- [ ] **LAN HTTP API** — FastAPI wrapper over `memory.py` so any LLM or tool on the local network can hit `/add`, `/search`, `/list`, `/delete` via plain HTTP, without needing an MCP client
+
 ## Changing models
 
 Edit the two constants at the top of `memory.py`:
