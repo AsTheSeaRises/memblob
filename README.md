@@ -117,6 +117,7 @@ print(m.list_all())
 **Inspect what's stored** at any time:
 
 ```bash
+cd /path/to/memblob
 .venv/bin/python3 -c "
 from memory import SimpleMemory
 for fact in SimpleMemory().list_all():
@@ -126,7 +127,7 @@ for fact in SimpleMemory().list_all():
 
 ## Memory storage
 
-Facts are persisted in `./memory_db/` (a ChromaDB SQLite store) relative to the `server.py` directory. Back it up or move it freely — it's just a folder.
+Facts are persisted in `~/.memblob/memory_db/` — a fixed absolute path so Claude Code, Claude Desktop, and terminal scripts all read and write the same database. Back it up or move it freely — it's just a folder.
 
 ## Compared to mem0
 

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from mcp.server.fastmcp import FastMCP
 from memory import SimpleMemory
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "memory_db")
+DB_PATH = os.path.expanduser("~/.memblob/memory_db")
 
 mcp = FastMCP("memblob")
 mem = SimpleMemory(db_path=DB_PATH)

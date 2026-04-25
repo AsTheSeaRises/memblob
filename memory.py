@@ -17,7 +17,7 @@ DEDUP_DISTANCE = 0.08  # cosine distance; facts closer than this are treated as 
 
 
 class SimpleMemory:
-    def __init__(self, db_path="./memory_db"):
+    def __init__(self, db_path=os.path.expanduser("~/.memblob/memory_db")):
         ef = OllamaEmbeddingFunction(
             url="http://localhost:11434/api/embeddings",
             model_name=EMBED_MODEL,
