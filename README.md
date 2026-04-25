@@ -176,6 +176,21 @@ Facts are persisted in `~/.memblob/memory_db/` — a fixed absolute path so Clau
 
 - [ ] **LAN HTTP API** — FastAPI wrapper over `memory.py` so any LLM or tool on the local network can hit `/add`, `/search`, `/list`, `/delete` via plain HTTP, without needing an MCP client
 
+- [ ] **MCP stats proxy** — a lightweight MCP proxy (`memblob_proxy.py`) that sits between any Claude client and the real memblob server. Exposes the same four tools so Claude can't tell the difference, but logs every call (operation, query, result count, timestamp) to SQLite before forwarding. Enables a watch CLI to monitor memory usage in real time. ~60-80 lines of Python. Architecture:
+
+  ```
+  Claude (any client)
+       │ MCP
+       ▼
+  memblob_proxy.py  ←── logs to SQLite
+       │ forwards call unchanged
+       ▼
+  server.py (real memblob)
+       │
+       ▼
+  ChromaDB + Ollama
+  ```
+
 ## Changing models
 
 Edit the two constants at the top of `memory.py`:
