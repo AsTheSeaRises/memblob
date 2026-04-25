@@ -1,3 +1,5 @@
 chromadb>=0.5
+openai>=1.40
 ollama>=0.2
 mcp[cli]>=1.0
+python-dotenv>=1.0

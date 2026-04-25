@@ -1,6 +1,15 @@
 # memblob
 
-Lightweight local memory for Claude Code and Claude Desktop. Extracts facts from conversations, stores them as vectors, and retrieves them semantically — all on-device via Ollama and ChromaDB. No cloud services.
+Lightweight local memory for Claude Code and Claude Desktop. Extracts facts from conversations, stores them as vectors, and retrieves them semantically. Vectors and the database live on-device in ChromaDB. Two backends are supported — fully local via Ollama, or via any OpenAI-compatible API provider.
+
+## Backends
+
+| Backend | Extraction | Embeddings | Requires |
+|---|---|---|---|
+| `local` | Ollama (on-device LLM) | Ollama (on-device) | Ollama running + models pulled |
+| `api` | Any OpenAI-compatible API | Same API | API key + endpoint |
+
+Switch backends by setting `MEMBLOB_BACKEND=local` or `MEMBLOB_BACKEND=api` in your `.env` file. DashScope (Qwen) is the documented API example, but any OpenAI-compatible provider works.
 
 ## Architecture
 
@@ -19,24 +28,22 @@ Lightweight local memory for Claude Code and Claude Desktop. Extracts facts from
            │                          │
            ▼                          ▼
 ┌──────────────────┐      ┌───────────────────────────┐
-│     Ollama       │      │        ChromaDB            │
-│                  │      │  (embedded, local SQLite)  │
-│  gemma4:e2b      │      │                            │
-│  → fact extract  │      │  cosine similarity index   │
-│                  │      │  ./memory_db/              │
-│  nomic-embed-    │      │                            │
-│  text            │      │  stores: fact text         │
-│  → embeddings    │      │          vector            │
-└──────────────────┘      │          user_id           │
+│  Ollama (local)  │      │        ChromaDB            │
+│  — OR —          │      │  (embedded, local SQLite)  │
+│  API provider    │      │                            │
+│                  │      │  cosine similarity index   │
+│  → fact extract  │      │  ~/.memblob/memory_db/     │
+│  → embeddings    │      │                            │
+└──────────────────┘      │  stores: fact text         │
+                          │          vector            │
+                          │          user_id           │
                           └───────────────────────────┘
 ```
 
-Every `add_memory` call goes left (Ollama extracts facts + embeds them) then right (ChromaDB stores them). Every `search_memory` goes right only — Ollama embeds the query, ChromaDB finds nearest neighbours.
-
 ## How it works
 
-1. **Extract** — send text to a local LLM (`gemma4:e2b`) with a prompt that returns a JSON list of key facts
-2. **Embed** — turn each fact into a vector using `nomic-embed-text` via Ollama
+1. **Extract** — send text to an LLM with a prompt that returns a JSON list of key facts
+2. **Embed** — turn each fact into a vector using an embedding model
 3. **Store** — persist the vector + text in ChromaDB (embedded, no server needed)
 4. **Retrieve** — on new conversations, embed the query and return nearest-neighbour facts
 
@@ -44,15 +51,9 @@ Deduplication is cosine-distance based: facts within distance 0.08 of an existin
 
 ## Requirements
 
-- [Ollama](https://ollama.com) running locally
-- The following models pulled:
-
-```bash
-ollama pull gemma4:e2b
-ollama pull nomic-embed-text
-```
-
 - Python 3.9+
+- **`local` backend**: [Ollama](https://ollama.com) running locally with models pulled (see below)
+- **`api` backend**: API key for an OpenAI-compatible provider (DashScope example below)
 
 ## Installation
 
@@ -61,14 +62,45 @@ git clone <repo-url> memblob
 cd memblob
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+cp .env.example .env
+# edit .env — set MEMBLOB_BACKEND and fill in the relevant section
 ```
+
+The server loads `.env` automatically at startup — no need to export variables in your shell or pass `--env` flags to `claude mcp add`.
+
+### Local backend setup
+
+```bash
+# Pull the required Ollama models
+ollama pull gemma4:e2b
+ollama pull nomic-embed-text
+```
+
+In `.env`:
+```
+MEMBLOB_BACKEND=local
+```
+
+### API backend setup (DashScope / Qwen example)
+
+Get an API key from the [Alibaba Cloud Model Studio console](https://bailian.console.alibabacloud.com/) (international).
+
+In `.env`:
+```
+MEMBLOB_BACKEND=api
+API_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+API_CHAT_MODEL=qwen-plus
+API_EMBED_MODEL=text-embedding-v4
+API_KEY=sk-your-key-here
+```
+
+Any OpenAI-compatible provider works — change `API_BASE_URL`, `API_CHAT_MODEL`, `API_EMBED_MODEL`, and `API_KEY` to match.
 
 ## Register with Claude Code
 
 ```bash
 claude mcp add --scope user memblob \
-  /path/to/memblob/.venv/bin/python \
-  /path/to/memblob/server.py
+  -- /path/to/memblob/.venv/bin/python /path/to/memblob/server.py
 ```
 
 Replace `/path/to/memblob` with your actual clone path. The `--scope user` flag makes it available across all projects, not just the current one.
@@ -174,16 +206,23 @@ Facts are persisted in `~/.memblob/memory_db/` — a fixed absolute path so Clau
   server.py (real memblob)
        │
        ▼
-  ChromaDB + Ollama
+  ChromaDB + DashScope
   ```
+
+## Switching backends
+
+The two backends use different embedding models with incompatible vector spaces, so switching requires re-embedding your stored memories. Update `.env` to the new backend, then either:
+
+- **Wipe and start fresh:** `rm -rf ~/.memblob/memory_db`
+- **Preserve existing memories:** `.venv/bin/python migrate.py` — re-embeds all stored facts with the new backend, no re-extraction needed.
 
 ## Changing models
 
-Edit the two constants at the top of `memory.py`:
+All models are configurable in `.env` — no code changes needed:
 
-```python
-EMBED_MODEL = "nomic-embed-text"   # any Ollama embedding model
-EXTRACT_MODEL = "gemma4:e2b"       # any Ollama chat model
-```
-
-Any model available via `ollama list` works. Smaller models (`llama3.2:3b`, `qwen2.5:3b`) are faster; larger ones extract more accurately.
+| Variable | Default | Description |
+|---|---|---|
+| `OLLAMA_EXTRACT_MODEL` | `gemma4:e2b` | Ollama chat model for extraction |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Ollama embedding model |
+| `API_CHAT_MODEL` | `qwen-plus` | API chat model for extraction |
+| `API_EMBED_MODEL` | `text-embedding-v4` | API embedding model |
