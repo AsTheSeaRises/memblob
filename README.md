@@ -1,8 +1,6 @@
 # memblob
 
-Lightweight local memory for Claude Code. Extracts facts from conversations, stores them as vectors, and retrieves them semantically — all on-device via Ollama and ChromaDB.
-
-Think of it as a minimal [mem0](https://github.com/mem0ai/mem0) that runs entirely on your machine with no cloud services.
+Lightweight local memory for Claude Code and Claude Desktop. Extracts facts from conversations, stores them as vectors, and retrieves them semantically — all on-device via Ollama and ChromaDB. No cloud services.
 
 ## Architecture
 
@@ -159,18 +157,6 @@ for fact in SimpleMemory().list_all():
 ## Memory storage
 
 Facts are persisted in `~/.memblob/memory_db/` — a fixed absolute path so Claude Code, Claude Desktop, and terminal scripts all read and write the same database. Back it up or move it freely — it's just a folder.
-
-## Compared to mem0
-
-| Feature | memblob | mem0 |
-|---|---|---|
-| Fully local | yes | optional |
-| Fact extraction | yes | yes |
-| Semantic dedup | near-verbatim only | LLM-based (catches paraphrases) |
-| Conflict resolution | accumulates | updates/merges |
-| Memory decay/scoring | no | yes |
-| Entity graph | no | yes |
-| Setup | ~5 min | more |
 
 ## Roadmap
 
