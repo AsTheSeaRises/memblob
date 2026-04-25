@@ -88,6 +88,28 @@ Verify it's live by running `/mcp` in a Claude Code session — `memblob` should
 
 `user_id` defaults to `"default"` — useful if you want separate memory namespaces.
 
+## Triggering memory in Claude Desktop
+
+By default the tools are passive — Claude only uses them when you explicitly ask ("remember this", "what do you know about me?").
+
+To make it always-on, add a **Custom Instruction** in Claude Desktop under **Settings → Custom Instructions**:
+
+```
+At the start of every conversation, call search_memory with a query
+relevant to what the user is asking, and include the results as context.
+
+When the user shares personal facts, preferences, tools they use, or
+decisions they've made, call add_memory to store them.
+```
+
+The three modes, in order of how automatic they are:
+
+| Mode | How triggered |
+|---|---|
+| Manual | Explicitly say "remember this" or "check your memory" |
+| Custom Instructions | Claude follows a standing instruction to use tools each session |
+| Programmatic (future) | LAN HTTP API injects memories into every request automatically |
+
 ## Adding memories
 
 **Via a Claude session** — just tell Claude to remember something and it calls `add_memory` for you:
