@@ -9,15 +9,32 @@ from dotenv import load_dotenv
 # Load .env from the directory of this file, regardless of cwd
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-EXTRACT_PROMPT = """Extract key facts from this conversation as a JSON array of short statements.
-Only extract concrete, factual information worth remembering long-term (names, preferences, tools, decisions).
-Return ONLY a JSON array of strings with no markdown or explanation.
+EXTRACT_PROMPT = """Extract durable, long-term-useful memories from this conversation as a JSON array of strings.
+
+Each string is ONE self-contained memory. Consolidate related details into a single rich entry rather than splitting them — e.g. a person's project (brand, audience, offerings, contact) is ONE entry, not ten fragments. A short paragraph is fine and preferred over a one-liner when context matters.
+
+Prefix each entry with a type tag, one of:
+  [profile]    — durable facts about who the user is (role, hardware, location, long-standing skills)
+  [preference] — how the user likes to work or be communicated with
+  [project]    — ongoing work, ventures, or sites they run (consolidate all related details)
+  [intent]     — current plans or things they're considering (mark these — they go stale)
+  [reference]  — pointers to external systems, URLs, accounts, contacts
+
+SKIP:
+- Transient chit-chat, one-off questions, debugging context for the current task
+- Anything obvious from public context or the current code
+- Restatements of facts already implied elsewhere
+
+If the new info refines or extends something likely already stored, emit the FULLY MERGED version as one entry — older fragments will be deduped automatically.
+
+Return ONLY a JSON array of strings, no markdown, no explanation. Empty array `[]` if nothing is worth keeping.
 
 Conversation:
 {text}"""
 
 DEFAULT_DB_PATH = os.path.expanduser("~/.memblob/memory_db")
-DEDUP_DISTANCE = 0.08  # cosine distance; facts closer than this are treated as duplicates
+DEDUP_DISTANCE = 0.15  # cosine distance; facts closer than this are treated as duplicates
+SEARCH_MAX_DISTANCE = 0.45  # cosine distance; search hits beyond this are dropped as irrelevant
 
 
 # ---------------------------------------------------------------------------
@@ -71,8 +88,11 @@ class _BaseMemory:
             query_texts=[query],
             where={"user_id": user_id},
             n_results=min(n, count),
+            include=["documents", "distances"],
         )
-        return results["documents"][0] if results["documents"] else []
+        docs = results["documents"][0] if results["documents"] else []
+        dists = results["distances"][0] if results["distances"] else []
+        return [d for d, dist in zip(docs, dists) if dist <= SEARCH_MAX_DISTANCE]
 
     def list_all(self, user_id: str = "default") -> list[str]:
         return self.collection.get(where={"user_id": user_id})["documents"]
